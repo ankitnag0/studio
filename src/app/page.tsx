@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Bot, User, SendHorizontal, Code, Eye, Info, Edit3, Sparkles } from 'lucide-react';
+import { Bot, User, SendHorizontal, Code, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { enhanceGamePrompt, EnhanceGamePromptInput, EnhanceGamePromptOutput } from '@/ai/flows/enhance-game-prompt';
 import { generateGameCode, GenerateGameCodeInput, GenerateGameCodeOutput } from '@/ai/flows/generate-game-code';
 import { iterativelyImproveGame, IterativelyImproveGameInput, IterativelyImproveGameOutput } from '@/ai/flows/iteratively-improve-game';
 import { parseCombinedCode, formatCodeForIteration, ParsedCode } from '@/lib/utils';
@@ -20,7 +19,7 @@ interface Message {
   sender: 'user' | 'ai';
   text: string;
   isLoading?: boolean;
-  status?: string; // e.g., "Enhancing prompt...", "Generating code..."
+  status?: string; 
 }
 
 type CodeType = 'html' | 'css' | 'js';
@@ -64,6 +63,8 @@ export default function GameGeniusPage() {
         newMessages[lastMsgIndex] = { ...newMessages[lastMsgIndex], text, isLoading, status };
         return newMessages;
       }
+      // If no AI message to update, add a new one (e.g., if first AI message is an error)
+      addMessage('ai', text, isLoading, status);
       return prev;
     });
   };
@@ -76,22 +77,16 @@ export default function GameGeniusPage() {
     setUserInput('');
     setIsAiProcessing(true);
     
-    // Clear previous game state
     setHtmlCode('');
     setCssCode('');
     setJsCode('');
     setGameDescription('');
 
     try {
-      setCurrentAiStep('Enhancing your idea...');
-      addMessage('ai', '', true, 'Enhancing your idea...');
-      const enhancedPromptOutput: EnhanceGamePromptOutput = await enhanceGamePrompt({ originalPrompt: userPrompt });
-      updateLastAiMessage(`Enhanced idea: ${enhancedPromptOutput.enhancedPrompt}`, true, 'Enhanced idea ready.');
-      addMessage('ai', `Enhanced idea: ${enhancedPromptOutput.enhancedPrompt}`);
-
       setCurrentAiStep('Designing game rules & generating code...');
-      updateLastAiMessage('', true, 'Designing game rules & generating code...');
-      const gameCodeOutput: GenerateGameCodeOutput = await generateGameCode({ gameIdea: enhancedPromptOutput.enhancedPrompt });
+      // Add a loading message immediately for the AI's turn
+      addMessage('ai', '', true, 'Designing game rules & generating code...');
+      const gameCodeOutput: GenerateGameCodeOutput = await generateGameCode({ gameIdea: userPrompt });
       
       setHtmlCode(gameCodeOutput.htmlCode);
       setCssCode(gameCodeOutput.cssCode);
@@ -232,65 +227,69 @@ export default function GameGeniusPage() {
         </div>
       </Card>
 
-      {/* Right Panel: Code Editor & Preview */}
-      <div className="w-2/3 flex flex-col m-2 space-y-2">
-        {/* Code Editor */}
+      {/* Right Panel: Tabbed Code Editor & Preview */}
+      <div className="w-2/3 flex flex-col m-2">
         <Card className="flex-1 flex flex-col shadow-xl rounded-lg border-border overflow-hidden">
-          <CardHeader className="p-4 border-b border-border">
-            <CardTitle className="flex items-center text-xl font-semibold text-primary">
-              <Code className="mr-2 h-6 w-6" /> Code Editor
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">Edit HTML, CSS, and JavaScript for your game.</CardDescription>
-          </CardHeader>
-          <Tabs defaultValue="html" className="flex-grow flex flex-col overflow-hidden">
-            <TabsList className="mx-4 mt-2 bg-muted p-1 rounded-md">
-              <TabsTrigger value="html" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=active]:shadow-sm">HTML</TabsTrigger>
-              <TabsTrigger value="css" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=active]:shadow-sm">CSS</TabsTrigger>
-              <TabsTrigger value="js" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=active]:shadow-sm">JavaScript</TabsTrigger>
-            </TabsList>
-            <TabsContent value="html" className="flex-grow p-0 m-0 overflow-hidden">
-              <Textarea
-                value={htmlCode}
-                onChange={(e) => handleCodeChange('html', e.target.value)}
-                placeholder="HTML code will appear here..."
-                className="h-full w-full resize-none border-0 rounded-none bg-secondary text-foreground font-mono text-sm p-2 focus-visible:ring-0"
-              />
+          <Tabs defaultValue="code" className="flex-grow flex flex-col">
+            <CardHeader className="p-4 border-b border-border sticky top-0 bg-background z-10">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center text-xl font-semibold text-primary">
+                  Code & Preview
+                </CardTitle>
+                <TabsList className="bg-muted p-1 rounded-md">
+                  <TabsTrigger value="code" className="data-[state=active]:bg-card data-[state=active]:text-card-foreground data-[state=active]:shadow-sm px-3 py-1.5">
+                    <Code className="mr-2 h-5 w-5" /> Code
+                  </TabsTrigger>
+                  <TabsTrigger value="preview" className="data-[state=active]:bg-card data-[state=active]:text-card-foreground data-[state=active]:shadow-sm px-3 py-1.5">
+                    <Eye className="mr-2 h-5 w-5" /> Preview
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+            </CardHeader>
+
+            <TabsContent value="code" className="flex-grow flex flex-col overflow-auto p-4 m-0">
+              <Tabs defaultValue="html" className="flex-grow flex flex-col">
+                <TabsList className="bg-muted p-1 rounded-md self-start mb-4">
+                  <TabsTrigger value="html" className="data-[state=active]:bg-card data-[state=active]:text-card-foreground data-[state=active]:shadow-sm">HTML</TabsTrigger>
+                  <TabsTrigger value="css" className="data-[state=active]:bg-card data-[state=active]:text-card-foreground data-[state=active]:shadow-sm">CSS</TabsTrigger>
+                  <TabsTrigger value="js" className="data-[state=active]:bg-card data-[state=active]:text-card-foreground data-[state=active]:shadow-sm">JavaScript</TabsTrigger>
+                </TabsList>
+                <TabsContent value="html" className="flex-grow overflow-auto">
+                  <Textarea
+                    value={htmlCode}
+                    onChange={(e) => handleCodeChange('html', e.target.value)}
+                    placeholder="HTML code will appear here..."
+                    className="h-full w-full resize-none border rounded-md bg-secondary text-foreground font-mono text-sm p-2 focus-visible:ring-0"
+                  />
+                </TabsContent>
+                <TabsContent value="css" className="flex-grow overflow-auto">
+                  <Textarea
+                    value={cssCode}
+                    onChange={(e) => handleCodeChange('css', e.target.value)}
+                    placeholder="CSS code will appear here..."
+                    className="h-full w-full resize-none border rounded-md bg-secondary text-foreground font-mono text-sm p-2 focus-visible:ring-0"
+                  />
+                </TabsContent>
+                <TabsContent value="js" className="flex-grow overflow-auto">
+                  <Textarea
+                    value={jsCode}
+                    onChange={(e) => handleCodeChange('js', e.target.value)}
+                    placeholder="JavaScript code will appear here..."
+                    className="h-full w-full resize-none border rounded-md bg-secondary text-foreground font-mono text-sm p-2 focus-visible:ring-0"
+                  />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
-            <TabsContent value="css" className="flex-grow p-0 m-0 overflow-hidden">
-              <Textarea
-                value={cssCode}
-                onChange={(e) => handleCodeChange('css', e.target.value)}
-                placeholder="CSS code will appear here..."
-                className="h-full w-full resize-none border-0 rounded-none bg-secondary text-foreground font-mono text-sm p-2 focus-visible:ring-0"
-              />
-            </TabsContent>
-            <TabsContent value="js" className="flex-grow p-0 m-0 overflow-hidden">
-              <Textarea
-                value={jsCode}
-                onChange={(e) => handleCodeChange('js', e.target.value)}
-                placeholder="JavaScript code will appear here..."
-                className="h-full w-full resize-none border-0 rounded-none bg-secondary text-foreground font-mono text-sm p-2 focus-visible:ring-0"
+
+            <TabsContent value="preview" className="flex-grow overflow-auto p-4 m-0">
+              <iframe
+                srcDoc={iframeSrcDoc}
+                title="Game Preview"
+                className="w-full h-full border rounded-md bg-white"
+                sandbox="allow-scripts allow-same-origin"
               />
             </TabsContent>
           </Tabs>
-        </Card>
-
-        {/* Game Preview */}
-        <Card className="h-1/2 flex flex-col shadow-xl rounded-lg border-border overflow-hidden">
-          <CardHeader className="p-4 border-b border-border">
-            <CardTitle className="flex items-center text-xl font-semibold text-primary">
-              <Eye className="mr-2 h-6 w-6" /> Game Preview
-            </CardTitle>
-             <CardDescription className="text-xs text-muted-foreground">See your game in action!</CardDescription>
-          </CardHeader>
-          <CardContent className="flex-grow p-0 overflow-hidden">
-            <iframe
-              srcDoc={iframeSrcDoc}
-              title="Game Preview"
-              className="w-full h-full border-0 bg-white"
-              sandbox="allow-scripts allow-same-origin"
-            />
-          </CardContent>
         </Card>
       </div>
     </div>
