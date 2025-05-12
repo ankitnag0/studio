@@ -281,7 +281,7 @@ export default function GameGeniusPage() {
               </Tabs>
             </TabsContent>
 
-            <TabsContent value="preview" className="flex-grow overflow-auto m-0">
+            <TabsContent value="preview" className="flex-grow overflow-auto m-0 h-full bg-red-200">
               <iframe
                 srcDoc={iframeSrcDoc}
                 title="Game Preview"
