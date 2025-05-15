@@ -1,4 +1,4 @@
-# **App Name**: GameGenius
+# **App Name**: WhaleStreetAI
 
 ## Core Features:
 
